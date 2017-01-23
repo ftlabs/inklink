@@ -1,3 +1,5 @@
+var express = require('express');
+
 var https = require('https');
 var formData = require('form-data');
 var fs = require('fs');
@@ -15,6 +17,22 @@ process.argv.forEach(function(val, index, array) {
 		addItemImage(keys.item_uuid);
 	}
 });
+
+var app = express();
+// app.http().io();
+
+var server = app.listen(2017, 'inklink.local');
+var io = require('socket.io').listen(server, { log : false });
+app.use(express.static(path.resolve(__dirname + "/../public")));
+
+app.get('/', function(req, res){
+	res.sendfile(path.resolve(__dirname +'/../scan.html'));
+});
+
+app.get('/', function(req, res){
+	res.sendfile(path.resolve(__dirname +'/../admin.html'));
+});
+
 
 function checkExistingCollection() {
 	apiCall(setupCall('getCollection'), function(response) {
