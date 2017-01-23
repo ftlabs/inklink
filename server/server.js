@@ -50,11 +50,8 @@ function checkCollectionDate(collections) {
 			required: true
 		}], 
 		function(err, results){
-			console.log(results);
-
 			if(results.prompt.toLowerCase() === 'y') {
-				deleteCollection(collections[0].uuid);
-				//TODO: create new collection here if 'new' flag.
+				deleteCollection(collections[0].uuid, createCollection);
 			} else {
 				console.log('Wise decision. Bye!');
 				return;
@@ -73,11 +70,12 @@ function createCollection() {
 	});
 }
 
-function deleteCollection(collectionID) {
+function deleteCollection(collectionID, callback) {
 	console.log('collection to delete:', collectionID);
 
 	apiCall(setupCall('deleteCollection', collectionID), function(response){
 		console.log('collection deleted');
+		callback();
 	});
 }
 
@@ -102,7 +100,7 @@ function setupCall(type, uuid) {
 	var setup = {};
 	var options = {
 		host: 'my.craftar.net'
-	}
+	};
 
 	switch(type) {
 		case 'getCollection':
@@ -145,8 +143,8 @@ function setupCall(type, uuid) {
 
 			var post_data = JSON.stringify({
 				"collection": "/api/v0/collection/" + keys.collection_uuid + "/",
-				"name": "paragraph",
-				"url": "https://www.ft.com/content/8cd3d5a4-dd9b-11e6-86ac-f253db7791c6"
+				"name": "crossword",
+				"url": "https://www.ft.com/"
 			});
 
 			options.headers = {
@@ -161,7 +159,7 @@ function setupCall(type, uuid) {
 			options.path = '/api/v0/image/?api_key=' + keys.api_key;
 			options.method = 'POST';
 
-			var img_path = path.join(__dirname, '../assets/paragraph.png');
+			var img_path = path.join(__dirname, '../assets/cw.png');
 
 			var form = new formData();
 			form.append("item", "/api/v0/item/" + uuid + "/");
@@ -172,7 +170,6 @@ function setupCall(type, uuid) {
 			setup.form = form;
 		break;
 	}
-
 
 	setup.options = options;
 	return setup;
