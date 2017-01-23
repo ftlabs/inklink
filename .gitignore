@@ -1,0 +1,4 @@
+.DS_Store
+server/keys.js
+node_modules/*
+assets/*
