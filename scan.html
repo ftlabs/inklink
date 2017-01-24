@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Scan your paper!</title>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/lib/craftar.min.js"></script>
+	
+	<script src="/js/craftwrapper.js"></script>
+
+
+	<script>
+		var socket = io.connect();
+		var token;
+		socket.emit('ready');
+
+		socket.on('setToken', function(data){
+			token = data.token;
+
+			initDetection(token);
+		});
+	</script>
+
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+	Hello inklink user!
+	<div class="container">
+        <div id="videoCapture">
+
+        </div>
+        <form action="#" method="post" accept-charset="utf-8">
+
+            <input id="scan" type="button" value="Start scanning">
+            <input id="selectorElement" type="file" accept="image/*" value="Select an image" class="hidden" name="ir">
+        </form>	
+        <!-- <div class="spinner hidden" id="spinner"><img src="./images/spinner.gif"></div> -->
+    </div>
+</body>
+</html>

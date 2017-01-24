@@ -1,27 +1,61 @@
+var express = require('express');
+
 var https = require('https');
 var formData = require('form-data');
 var fs = require('fs');
 var path = require('path');
 var prompt = require('prompt');
 
+var collectionUUID, collectionToken;
+
 var keys = require('./keys');
 
 //TODO: remove this temporary flag system to startup node
 process.argv.forEach(function(val, index, array) {
 	if(val === "new") {
-		checkExistingCollection();
+		checkExistingCollection(true);
 	} else if(val === "img") {
 		//NOTE: test only
 		addItemImage(keys.item_uuid);
 	}
 });
 
-function checkExistingCollection() {
+var app = express();
+
+var server = app.listen(2017);
+var io = require('socket.io').listen(server, { log : false });
+app.use(express.static(path.resolve(__dirname + "/../public")));
+
+checkExistingCollection(false);
+
+app.get('/', function(req, res){
+	res.sendFile(path.resolve(__dirname +'/../scan.html'));
+});
+
+app.get('/admin', function(req, res){
+	res.sendFile(path.resolve(__dirname +'/../admin.html'));
+});
+
+io.on('connection', function(socket){
+	socket.on('ready', function(data){
+		socket.emit('setToken', {token: collectionToken});
+	});
+});
+
+
+function checkExistingCollection(isNew) {
 	apiCall(setupCall('getCollection'), function(response) {
 		var collectionExists = !!(JSON.parse(response).meta.total_count > 0);
 
         if(collectionExists) {
-        	checkCollectionDate(JSON.parse(response).objects);
+        	collectionUUID = JSON.parse(response).objects[0].uuid;
+
+        	if(isNew) {
+        		checkCollectionDate(JSON.parse(response).objects);
+        	} else {
+        		console.log(JSON.parse(response));
+        		getCollectionToken();
+        	}
         } else {
         	createCollection();
         }
@@ -79,6 +113,12 @@ function deleteCollection(collectionID, callback) {
 	});
 }
 
+function getCollectionToken(){
+	apiCall(setupCall('getCollectionToken'), function(response){
+		collectionToken = JSON.parse(response).objects[0].token;
+	});
+};
+
 function createNewItem(){
 	console.log('createNewItem');
 
@@ -133,6 +173,11 @@ function setupCall(type, uuid) {
 			options.headers = {
 				'Content-Type': 'application/json'
 			};
+		break;
+
+		case 'getCollectionToken':
+			options.path = '/api/v0/token/?api_key=' + keys.api_key + '&collection_uuid=' + collectionUUID;
+			options.method = 'GET';
 		break;
 
 		case 'setItem':
