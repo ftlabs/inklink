@@ -39,11 +39,16 @@ function initDetection(token) {
 }
 
 function switchToSelector() {
+    var fakeSelector = document.getElementById('fakeSelector');
     var selectorElement = document.getElementById('selectorElement');
 
     scanButton.setAttribute("class", "hidden");
-    selectorElement.removeAttribute("class", "hidden");
+    fakeSelector.classList.remove("hidden");
 
+    fakeSelector.addEventListener('click', function(e){
+        e.preventDefault();
+        selectorElement.click();
+    });
 
     var selector = new craftar.ImageSelector(selectorElement);
     selector.addListener('image', function(craftarImage) {
@@ -89,7 +94,7 @@ function renderResults( results ){
     resultEl.setAttribute('href', resultItem.item.url);
     resultEl.setAttribute('target', '_self');
     resultEl.click();
-};
+}
 
 
 function setupCapture( callback ){
