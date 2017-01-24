@@ -4,21 +4,10 @@ var https = require('https');
 var formData = require('form-data');
 var fs = require('fs');
 var path = require('path');
-var prompt = require('prompt');
 
 var collectionUUID, collectionToken;
-
 var keys = require('./keys');
 
-//TODO: remove this temporary flag system to startup node
-process.argv.forEach(function(val, index, array) {
-	if(val === "new") {
-		checkExistingCollection(true);
-	} else if(val === "img") {
-		//NOTE: test only
-		addItemImage(keys.item_uuid);
-	}
-});
 
 var app = express();
 
@@ -46,13 +35,18 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('newCollection', function(data){
-		console.log('newCollection received');
-		// checkExistingCollection(true);
+		checkExistingCollection(true, function(response){
+			socket.emit('prompt', {text: response});
+		});
+	});
+
+	socket.on('deleteCollection', function(data){
+		deleteCollection(collectionUUID, createCollection);
 	});
 });
 
 
-function checkExistingCollection(isNew) {
+function checkExistingCollection(isNew, callback) {
 	apiCall(setupCall('getCollection'), function(response) {
 		var collectionExists = !!(JSON.parse(response).meta.total_count > 0);
 
@@ -60,9 +54,8 @@ function checkExistingCollection(isNew) {
         	collectionUUID = JSON.parse(response).objects[0].uuid;
 
         	if(isNew) {
-        		checkCollectionDate(JSON.parse(response).objects);
+        		checkCollectionDate(JSON.parse(response).objects, callback);
         	} else {
-        		console.log(JSON.parse(response));
         		getCollectionToken();
         	}
         } else {
@@ -71,41 +64,27 @@ function checkExistingCollection(isNew) {
 	});
 }
 
-function checkCollectionDate(collections) {
+function checkCollectionDate(collections, callback) {
 	var collection_date = collections[0].name.split('-')[2];
 	
 	var today = new Date();
 	var stamp = today.getFullYear().toString() + (today.getMonth() + 1).toString() + today.getDate().toString();
 
-	prompt.start();
-
 	var prompt_text = '';
 	
 	if(collection_date === stamp) {
-		prompt_text = 'There already is a collection for today, do you want to start over? Y/N';
+		prompt_text = 'There already is a collection for today, do you want to start over?';
 	} else {
-		prompt_text = 'There is already an older collection, do you want to delete it? Y/N';
+		prompt_text = 'There is already an older collection, do you want to delete it?';
 	}
 
-	prompt.get([{
-			name : 'prompt',
-			description: prompt_text,
-			required: true
-		}], 
-		function(err, results){
-			if(results.prompt.toLowerCase() === 'y') {
-				deleteCollection(collections[0].uuid, createCollection);
-			} else {
-				console.log('Wise decision. Bye!');
-				return;
-			}
-	});
+	callback(prompt_text);
 }
 
 function createCollection() {
 	apiCall(setupCall('setCollection'), function(response){
 		var collection_uuid = JSON.parse(response).uuid;    
-        keys.collection_uuid = collection_uuid;
+        collectionUUID = collection_uuid;
 
         createNewItem();
         //TODO: create items if there are any queued
@@ -131,7 +110,7 @@ function getCollectionToken(){
 function createNewItem(){
 	console.log('createNewItem');
 
-	apiCall(setupCall('setItem', keys.collection_uuid), function(response){
+	apiCall(setupCall('setItem', collectionUUID), function(response){
 		var item_uuid = JSON.parse(response).uuid;
         console.log(item_uuid);
 
@@ -196,7 +175,7 @@ function setupCall(type, uuid) {
 			//TODO: dynamic content for post data
 
 			var post_data = JSON.stringify({
-				"collection": "/api/v0/collection/" + keys.collection_uuid + "/",
+				"collection": "/api/v0/collection/" + collectionUUID + "/",
 				"name": "crossword",
 				"url": "https://www.ft.com/"
 			});
