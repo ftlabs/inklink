@@ -40,6 +40,15 @@ io.on('connection', function(socket){
 	socket.on('ready', function(data){
 		socket.emit('setToken', {token: collectionToken});
 	});
+
+	socket.on('adminReady', function(data){
+		socket.emit('ready');
+	});
+
+	socket.on('newCollection', function(data){
+		console.log('newCollection received');
+		// checkExistingCollection(true);
+	});
 });
 
 
