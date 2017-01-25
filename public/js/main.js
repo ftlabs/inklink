@@ -7,6 +7,9 @@ function init() {
 		socket.emit('newCollection');
 	});
 
+	var uploader = new SocketIOFileUpload(socket);
+	uploader.listenOnInput(document.getElementById("CollectionItems"));	
+
 
 	socket.on('prompt', function(data){
 		console.log(data.text);

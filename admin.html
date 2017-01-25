@@ -6,6 +6,7 @@
 	<title>Upload your markers!</title>
 
 	<script src="/socket.io/socket.io.js"></script>
+	<script src="/siofu/client.js"></script>
 	<script src="/js/main.js"></script>
 
 	<script>
@@ -30,7 +31,13 @@
 		<p>Hello InkLink admin!</p>
 	</div>
 
-	<button id="NewCol" class="o-buttons o-buttons--standout o-buttons--big">New Collection</button>
+	<div class="centre-button">
+		<button id="NewCol" class="o-buttons o-buttons--standout o-buttons--big">New Collection</button>
+	</div>
+
+	<form action="#" method="post" accept-charset="utf-8">
+		<input id="CollectionItems" type="file" accept=".zip">
+	</form>
 
 	<script src="//origami-build.ft.com/v2/bundles/js?modules=o-buttons"></script>
 </body>

@@ -1,9 +1,10 @@
 var express = require('express');
-
+var siofu = require("socketio-file-upload");
 var https = require('https');
 var formData = require('form-data');
 var fs = require('fs');
 var path = require('path');
+var unzip = require('unzip2');
 
 var collectionUUID, collectionToken;
 var keys = require('./keys');
@@ -11,7 +12,7 @@ var keys = require('./keys');
 
 var app = express();
 
-var server = app.listen(2017);
+var server = app.use(siofu.router).listen(2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
 
@@ -31,6 +32,15 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('adminReady', function(data){
+		var uploader = new siofu();
+	    uploader.dir = path.resolve(__dirname + "/../public/uploads");
+	    uploader.listen(socket);
+
+	    uploader.on("saved", function(data){
+	    	console.log('saved');
+	    	extractItems(data.file.name);
+	    });
+
 		socket.emit('ready');
 	});
 
@@ -86,7 +96,7 @@ function createCollection() {
 		var collection_uuid = JSON.parse(response).uuid;    
         collectionUUID = collection_uuid;
 
-        createNewItem();
+        // createNewItem();
         //TODO: create items if there are any queued
         //TODO: create a queue system for items/images in the GUI
 	});
@@ -107,13 +117,34 @@ function getCollectionToken(){
 	});
 };
 
-function createNewItem(){
+function extractItems(file) {
+	console.log(file);
+	fs.createReadStream(path.join(__dirname + '/../public/uploads/' + file))
+		.pipe(unzip.Extract({ path: path.join(__dirname + '/../public/uploads/extract')}))
+		.on('close', function(){
+			var folder = file.split('.zip')[0];
+			var extractPath = path.join(__dirname + '/../public/uploads/extract/' + folder + '/');
+
+			fs.readdir(extractPath, function(err, dir){
+				dir.forEach(function(i){
+					var stats = fs.statSync(extractPath + '/' + i);
+					if(stats.isDirectory()) {
+						var item_data = {};
+						item_data.name = i.split('*')[0];
+						item_data.url = 'http://' + i.split('*')[1].split(':').join('/');
+
+						createNewItem(item_data);
+					}
+				});
+			});
+		});
+}
+
+function createNewItem(data){
 	console.log('createNewItem');
 
-	apiCall(setupCall('setItem', collectionUUID), function(response){
+	apiCall(setupCall('setItem', collectionUUID, data), function(response){
 		var item_uuid = JSON.parse(response).uuid;
-        console.log(item_uuid);
-
         addItemImage(item_uuid);
 	});
 }
@@ -124,7 +155,7 @@ function addItemImage(item_uuid) {
 	});
 }
 
-function setupCall(type, uuid) {
+function setupCall(type, uuid, data) {
 	var setup = {};
 	var options = {
 		host: 'my.craftar.net'
@@ -172,14 +203,10 @@ function setupCall(type, uuid) {
 			options.path = '/api/v0/item/?api_key=' + keys.api_key;
 			options.method = 'POST';
 
-			//TODO: dynamic content for post data
+			var data = data;
+			data.collection = "/api/v0/collection/" + collectionUUID + "/";
 
-			var post_data = JSON.stringify({
-				"collection": "/api/v0/collection/" + collectionUUID + "/",
-				"name": "crossword",
-				"url": "https://www.ft.com/"
-			});
-
+			var post_data = JSON.stringify(data);
 			options.headers = {
 				'Content-Type': 'application/json',
 				'Content-Length': post_data.length
