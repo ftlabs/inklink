@@ -2,3 +2,4 @@
 server/keys.js
 node_modules/*
 assets/*
+public/uploads/*

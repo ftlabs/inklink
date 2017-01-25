@@ -1,28 +1,18 @@
 var express = require('express');
-
+var siofu = require("socketio-file-upload");
 var https = require('https');
 var formData = require('form-data');
 var fs = require('fs');
 var path = require('path');
-var prompt = require('prompt');
+var unzip = require('unzip2');
 
-var collectionUUID, collectionToken;
-
+var collectionUUID, collectionToken, extractPath;
 var keys = require('./keys');
 
-//TODO: remove this temporary flag system to startup node
-process.argv.forEach(function(val, index, array) {
-	if(val === "new") {
-		checkExistingCollection(true);
-	} else if(val === "img") {
-		//NOTE: test only
-		addItemImage(keys.item_uuid);
-	}
-});
 
 var app = express();
 
-var server = app.listen(2017);
+var server = app.use(siofu.router).listen(2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
 
@@ -40,10 +30,32 @@ io.on('connection', function(socket){
 	socket.on('ready', function(data){
 		socket.emit('setToken', {token: collectionToken});
 	});
+
+	socket.on('adminReady', function(data){
+		var uploader = new siofu();
+	    uploader.dir = path.resolve(__dirname + "/../public/uploads");
+	    uploader.listen(socket);
+
+	    uploader.on("saved", function(data){
+	    	extractItems(data.file.name);
+	    });
+
+		socket.emit('ready');
+	});
+
+	socket.on('newCollection', function(data){
+		checkExistingCollection(true, function(response){
+			socket.emit('prompt', {text: response});
+		});
+	});
+
+	socket.on('deleteCollection', function(data){
+		deleteCollection(collectionUUID, createCollection);
+	});
 });
 
 
-function checkExistingCollection(isNew) {
+function checkExistingCollection(isNew, callback) {
 	apiCall(setupCall('getCollection'), function(response) {
 		var collectionExists = !!(JSON.parse(response).meta.total_count > 0);
 
@@ -51,9 +63,8 @@ function checkExistingCollection(isNew) {
         	collectionUUID = JSON.parse(response).objects[0].uuid;
 
         	if(isNew) {
-        		checkCollectionDate(JSON.parse(response).objects);
+        		checkCollectionDate(JSON.parse(response).objects, callback);
         	} else {
-        		console.log(JSON.parse(response));
         		getCollectionToken();
         	}
         } else {
@@ -62,43 +73,29 @@ function checkExistingCollection(isNew) {
 	});
 }
 
-function checkCollectionDate(collections) {
+function checkCollectionDate(collections, callback) {
 	var collection_date = collections[0].name.split('-')[2];
 	
 	var today = new Date();
 	var stamp = today.getFullYear().toString() + (today.getMonth() + 1).toString() + today.getDate().toString();
 
-	prompt.start();
-
 	var prompt_text = '';
 	
 	if(collection_date === stamp) {
-		prompt_text = 'There already is a collection for today, do you want to start over? Y/N';
+		prompt_text = 'There already is a collection for today, do you want to start over?';
 	} else {
-		prompt_text = 'There is already an older collection, do you want to delete it? Y/N';
+		prompt_text = 'There is already an older collection, do you want to delete it?';
 	}
 
-	prompt.get([{
-			name : 'prompt',
-			description: prompt_text,
-			required: true
-		}], 
-		function(err, results){
-			if(results.prompt.toLowerCase() === 'y') {
-				deleteCollection(collections[0].uuid, createCollection);
-			} else {
-				console.log('Wise decision. Bye!');
-				return;
-			}
-	});
+	callback(prompt_text);
 }
 
 function createCollection() {
 	apiCall(setupCall('setCollection'), function(response){
 		var collection_uuid = JSON.parse(response).uuid;    
-        keys.collection_uuid = collection_uuid;
+        collectionUUID = collection_uuid;
 
-        createNewItem();
+        // createNewItem();
         //TODO: create items if there are any queued
         //TODO: create a queue system for items/images in the GUI
 	});
@@ -119,24 +116,65 @@ function getCollectionToken(){
 	});
 };
 
-function createNewItem(){
+function extractItems(file) {
+	fs.createReadStream(path.join(__dirname + '/../public/uploads/' + file))
+		.pipe(unzip.Extract({ path: path.join(__dirname + '/../public/uploads/extract')}))
+		.on('close', function(){
+			var folder = file.split('.zip')[0];
+			extractPath = path.join(__dirname + '/../public/uploads/extract/' + folder + '/');
+
+			fs.readdir(extractPath, function(err, dir){
+				dir.forEach(function(i){
+					var stats = fs.statSync(extractPath + '/' + i);
+					if(stats.isDirectory()) {
+						var item_data = {};
+						item_data.name = i.split('*')[0];
+						item_data.url = 'http://' + i.split('*')[1].split(':').join('/');
+
+						createNewItem(item_data);
+					}
+				});
+			});
+		});
+}
+
+function createNewItem(data){
 	console.log('createNewItem');
 
-	apiCall(setupCall('setItem', keys.collection_uuid), function(response){
+	apiCall(setupCall('setItem', collectionUUID, data), function(response){
 		var item_uuid = JSON.parse(response).uuid;
-        console.log(item_uuid);
+		var item_name = JSON.parse(response).name;
 
-        addItemImage(item_uuid);
+		fs.readdir(extractPath, function(err, dir){
+			dir.forEach(function(i){
+				var dirPath = extractPath + '/' + i;
+				var stats = fs.statSync(dirPath);
+				if(stats.isDirectory() && i.split('*')[0] === item_name) {
+					extractImages(dirPath, item_uuid);
+				}
+			});
+		});
 	});
 }
 
-function addItemImage(item_uuid) {
-	apiCall(setupCall('setImage', item_uuid), function(response) {
+function extractImages(dirPath, item_uuid) {
+	fs.readdir(dirPath, function(err, file){
+		file.forEach(function(i){
+			if(path.extname(i) === '.png') {
+				var imgPath = dirPath + '/' + i;
+				addItemImage(item_uuid, imgPath);
+			}
+		});
+	});
+}
+
+function addItemImage(item_uuid, imgPath) {
+	apiCall(setupCall('setImage', item_uuid, imgPath), function(response) {
 		console.log('created Image');
 	});
 }
 
-function setupCall(type, uuid) {
+function setupCall(type, uuid, data) {
 	var setup = {};
 	var options = {
 		host: 'my.craftar.net'
@@ -184,14 +222,10 @@ function setupCall(type, uuid) {
 			options.path = '/api/v0/item/?api_key=' + keys.api_key;
 			options.method = 'POST';
 
-			//TODO: dynamic content for post data
+			var data = data;
+			data.collection = "/api/v0/collection/" + collectionUUID + "/";
 
-			var post_data = JSON.stringify({
-				"collection": "/api/v0/collection/" + keys.collection_uuid + "/",
-				"name": "crossword",
-				"url": "https://www.ft.com/"
-			});
-
+			var post_data = JSON.stringify(data);
 			options.headers = {
 				'Content-Type': 'application/json',
 				'Content-Length': post_data.length
@@ -204,7 +238,7 @@ function setupCall(type, uuid) {
 			options.path = '/api/v0/image/?api_key=' + keys.api_key;
 			options.method = 'POST';
 
-			var img_path = path.join(__dirname, '../assets/cw.png');
+			var img_path = data;
 
 			var form = new formData();
 			form.append("item", "/api/v0/item/" + uuid + "/");
@@ -221,8 +255,6 @@ function setupCall(type, uuid) {
 }
 
 function apiCall(setup, callback){
-	console.log(setup.options);
-	
 	var hreq = https.request(setup.options);
 
 	if(setup.form)	setup.form.pipe(hreq);

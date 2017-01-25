@@ -1,9 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
 	<title>Upload your markers!</title>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/siofu/client.js"></script>
+	<script src="/js/main.js"></script>
+
+	<script>
+		var socket = io.connect();
+		socket.emit('adminReady');
+
+		socket.on('ready', function(data){
+			init();
+		});
+	</script>
+
+	<link rel="stylesheet" href="https://build.origami.ft.com/v2/bundles/css?modules=o-fonts@^2.2.0,o-typography@^4.3.2,o-buttons@^4.4.4" />
+	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
-	Hello inklink admin!
+	<header>
+		<h1><a class="logo" href="http://labs.ft.com" target="_blank"><img src="/img/ftlabs_avatar-green.png" alt="FT labs" /></a></h1>
+		<h2 class="o-typography-heading1">InkLink</h2>
+	</header>
+	<hr />
+	<div class="o-typography-body intro">
+		<p>Hello InkLink admin!</p>
+	</div>
+
+	<div class="centre-button">
+		<button id="NewCol" class="o-buttons o-buttons--standout o-buttons--big">New Collection</button>
+	</div>
+
+	<form action="#" method="post" accept-charset="utf-8">
+		<input id="CollectionItems" type="file" accept=".zip">
+	</form>
+
+	<script src="//origami-build.ft.com/v2/bundles/js?modules=o-buttons"></script>
 </body>
 </html>
