@@ -6,7 +6,7 @@ var fs = require('fs');
 var path = require('path');
 var unzip = require('unzip2');
 
-var collectionUUID, collectionToken;
+var collectionUUID, collectionToken, extractPath;
 var keys = require('./keys');
 
 
@@ -37,7 +37,6 @@ io.on('connection', function(socket){
 	    uploader.listen(socket);
 
 	    uploader.on("saved", function(data){
-	    	console.log('saved');
 	    	extractItems(data.file.name);
 	    });
 
@@ -118,12 +117,11 @@ function getCollectionToken(){
 };
 
 function extractItems(file) {
-	console.log(file);
 	fs.createReadStream(path.join(__dirname + '/../public/uploads/' + file))
 		.pipe(unzip.Extract({ path: path.join(__dirname + '/../public/uploads/extract')}))
 		.on('close', function(){
 			var folder = file.split('.zip')[0];
-			var extractPath = path.join(__dirname + '/../public/uploads/extract/' + folder + '/');
+			extractPath = path.join(__dirname + '/../public/uploads/extract/' + folder + '/');
 
 			fs.readdir(extractPath, function(err, dir){
 				dir.forEach(function(i){
@@ -145,12 +143,33 @@ function createNewItem(data){
 
 	apiCall(setupCall('setItem', collectionUUID, data), function(response){
 		var item_uuid = JSON.parse(response).uuid;
-        addItemImage(item_uuid);
+		var item_name = JSON.parse(response).name;
+
+		fs.readdir(extractPath, function(err, dir){
+			dir.forEach(function(i){
+				var dirPath = extractPath + '/' + i;
+				var stats = fs.statSync(dirPath);
+				if(stats.isDirectory() && i.split('*')[0] === item_name) {
+					extractImages(dirPath, item_uuid);
+				}
+			});
+		});
 	});
 }
 
-function addItemImage(item_uuid) {
-	apiCall(setupCall('setImage', item_uuid), function(response) {
+function extractImages(dirPath, item_uuid) {
+	fs.readdir(dirPath, function(err, file){
+		file.forEach(function(i){
+			if(path.extname(i) === '.png') {
+				var imgPath = dirPath + '/' + i;
+				addItemImage(item_uuid, imgPath);
+			}
+		});
+	});
+}
+
+function addItemImage(item_uuid, imgPath) {
+	apiCall(setupCall('setImage', item_uuid, imgPath), function(response) {
 		console.log('created Image');
 	});
 }
@@ -219,7 +238,7 @@ function setupCall(type, uuid, data) {
 			options.path = '/api/v0/image/?api_key=' + keys.api_key;
 			options.method = 'POST';
 
-			var img_path = path.join(__dirname, '../assets/cw.png');
+			var img_path = data;
 
 			var form = new formData();
 			form.append("item", "/api/v0/item/" + uuid + "/");
@@ -236,8 +255,6 @@ function setupCall(type, uuid, data) {
 }
 
 function apiCall(setup, callback){
-	console.log(setup.options);
-	
 	var hreq = https.request(setup.options);
 
 	if(setup.form)	setup.form.pipe(hreq);
