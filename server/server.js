@@ -1,13 +1,15 @@
 require('dotenv').config();
-var express = require('express');
-var auth = require('s3o-middleware');
-var siofu = require("socketio-file-upload");
-var https = require('https');
-var formData = require('form-data');
-var fs = require('fs');
-var path = require('path');
-var unzip = require('unzip2');
-var del = require('del');
+const express = require('express');
+const auth = require('s3o-middleware');
+const siofu = require("socketio-file-upload");
+const https = require('https');
+const formData = require('form-data');
+const fs = require('fs');
+const path = require('path');
+const unzip = require('unzip2');
+const del = require('del');
+const express_enforces_ssl = require('express-enforces-ssl');
+const helmet = require('helmet');
 
 var collectionUUID, collectionToken, extractPath;
 var uploadCounter = 0;
@@ -20,6 +22,12 @@ var server = app.use(siofu.router).listen(process.env.PORT || 2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
 app.use(auth);
+
+if(process.env.NODE_ENV !== 'local') {
+	app.use(helmet());
+	app.enable('trust proxy');
+	app.use(express_enforces_ssl());
+}
 
 app.get('/', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../scan.html'));
