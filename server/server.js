@@ -1,5 +1,6 @@
 require('dotenv').config();
 var express = require('express');
+var auth = require('s3o-middleware');
 var siofu = require("socketio-file-upload");
 var https = require('https');
 var formData = require('form-data');
@@ -18,6 +19,7 @@ var app = express();
 var server = app.use(siofu.router).listen(process.env.PORT || 2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
+app.use(auth);
 
 app.get('/', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../scan.html'));
