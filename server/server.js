@@ -18,14 +18,18 @@ var server = app.use(siofu.router).listen(2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
 
-checkExistingCollection(false);
-
 app.get('/', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../scan.html'));
 });
 
 app.get('/admin', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../admin.html'));
+
+	fs.readdir(path.resolve(__dirname +'/../public/uploads'), function(err, data){
+		if(err) {
+			fs.mkdir(path.join(__dirname + '/../public/uploads'), function(){});
+		}
+	});
 });
 
 io.on('connection', function(socket){
@@ -70,9 +74,7 @@ io.on('connection', function(socket){
 
 function clearUploads() {
 	del([path.join(__dirname + '/../public/uploads/')]).then(function(){
-		fs.mkdir(path.join(__dirname + '/../public/uploads'), function(){
-			console.log('DONE');
-		});
+		fs.mkdir(path.join(__dirname + '/../public/uploads'), function(){});
 	});
 }
 
@@ -316,3 +318,6 @@ function apiCall(setup, callback){
 
 	if(!setup.form) hreq.end();
 }
+
+
+checkExistingCollection(false);
