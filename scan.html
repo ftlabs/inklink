@@ -20,7 +20,7 @@
 			initDetection(token);
 		});
 	</script>
-	<link rel="stylesheet" href="https://build.origami.ft.com/v2/bundles/css?modules=o-fonts@^2.2.0,o-typography@^4.3.2,o-buttons@^4.4.4" />
+	<link rel="stylesheet" href="https://build.origami.ft.com/v2/bundles/css?modules=o-fonts@^2.2.0,o-typography@^4.3.2,o-buttons@^4.4.4,o-loading@^1.0.0" />
 	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
@@ -33,18 +33,19 @@
 		<p>Hi there! Scan the images in this morning's newspaper to unlock content.</p>
 	</div>
 	<div class="container o-typography-body">
-        <div id="videoCapture"></div>
-        
         <form action="#" method="post" accept-charset="utf-8">
             <div class="centre-button">
             	<input id="scan" class="o-buttons o-buttons--standout o-buttons--big" type="button" value="Start scanning">
+
+       			<div class="loader o-loading o-loading--dark o-loading--medium hidden"></div>
             </div>
             <div class="centre-button">
             	<button id="fakeSelector" class="hidden o-buttons o-buttons--standout o-buttons--big">Select an image</button>
             	<input id="selectorElement" type="file" accept="image/*" value="Select an image" class="hidden" name="ir">
             </div>    
-        </form>	
-        <!-- <div class="spinner hidden" id="spinner"><img src="./images/spinner.gif"></div> -->
+        </form>
+        <div class="output centre-content"></div>
+        <div id="videoCapture"></div>
     </div>
 
     <script src="//origami-build.ft.com/v2/bundles/js?modules=o-buttons"></script>

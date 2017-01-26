@@ -1,8 +1,10 @@
 var finderResults = false;
-var scanButton, cloudRecognition;
+var scanButton, cloudRecognition, output, loader, fakeSelector;
 
 function initDetection(token) {
 	scanButton = document.getElementById( 'scan' );
+    output = document.querySelector( '.output' );
+    loader = document.querySelector( '.loader' );
 
 	cloudRecognition =  new craftar.CloudRecognition({
         token: token
@@ -25,6 +27,8 @@ function initDetection(token) {
                 scanButton.addEventListener( 'click', function(){
                     finderResults = false;
                     cloudRecognition.startFinder( captureObject, 2000, 3);
+                    scanButton.classList.add('hidden');
+                    loader.classList.remove('hidden');
                 });
             }
 
@@ -34,12 +38,14 @@ function initDetection(token) {
         // Capture not supported, switch to selector mode
         switchToSelector();
     }else{
-        alert("This browser doesn't support HTML5 features needed for CraftAR HTML5 Library");
+        var p = document.createElement('p');
+        p.textContent = "This browser doesn't support HTML5 features needed for CraftAR HTML5 Library";
+        output.appendChild(p);
     }
 }
 
 function switchToSelector() {
-    var fakeSelector = document.getElementById('fakeSelector');
+    fakeSelector = document.getElementById('fakeSelector');
     var selectorElement = document.getElementById('selectorElement');
 
     scanButton.setAttribute("class", "hidden");
@@ -53,6 +59,9 @@ function switchToSelector() {
     var selector = new craftar.ImageSelector(selectorElement);
     selector.addListener('image', function(craftarImage) {
         cloudRecognition.search(craftarImage);
+        
+        fakeSelector.classList.add('hidden');
+        loader.classList.remove('hidden');
     });
 
     setSelectorResultsListener();
@@ -64,7 +73,12 @@ function setSelectorResultsListener() {
         if (results.results && results.results.length > 0) {
             renderResults( results );
         } else {
-            alert("No results found, select an image that contains an object to scan.");
+            var p = document.createElement('p');
+            p.textContent = "No results found, select an image that contains an object to scan.";
+            output.appendChild(p);
+
+            fakeSelector.classList.remove('hidden');
+            loader.classList.add('hidden');
         }
     });
 }
@@ -81,7 +95,12 @@ function setCaptureResultsListener() {
 
     cloudRecognition.addListener('finderFinished', function(){
         if (!finderResults) {
-            alert("No results found, point to an object.");
+            var p = document.createElement('p');
+            p.textContent = "No results found, point to an object.";
+            output.appendChild(p);
+            
+            scanButton.classList.remove('hidden');
+            loader.classList.add('hidden');
         }
     });
 }
