@@ -36,8 +36,12 @@ io.on('connection', function(socket){
 	    uploader.dir = path.resolve(__dirname + "/../public/uploads");
 	    uploader.listen(socket);
 
-	    uploader.on("saved", function(data){
-	    	extractItems(data.file.name);
+
+	    //TODO on start, delete contents of uploads folder
+	    uploader.on("saved", function(data, callback){
+	    	extractItems(data.file.name, function(data){
+	    		socket.emit('notice', {text: data});
+	    	});
 	    });
 
 		socket.emit('ready');
@@ -50,7 +54,10 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('deleteCollection', function(data){
-		deleteCollection(collectionUUID, createCollection);
+		deleteCollection(collectionUUID, createCollection, function(data){
+			console.log(data);
+			socket.emit('notice', {text: data});
+		});	
 	});
 });
 
@@ -90,23 +97,20 @@ function checkCollectionDate(collections, callback) {
 	callback(prompt_text);
 }
 
-function createCollection() {
+function createCollection(callback) {
 	apiCall(setupCall('setCollection'), function(response){
 		var collection_uuid = JSON.parse(response).uuid;    
         collectionUUID = collection_uuid;
 
-        // createNewItem();
-        //TODO: create items if there are any queued
-        //TODO: create a queue system for items/images in the GUI
+        callback('new collection created ' + JSON.parse(response).name);
 	});
 }
 
-function deleteCollection(collectionID, callback) {
+function deleteCollection(collectionID, create, callback) {
 	console.log('collection to delete:', collectionID);
 
 	apiCall(setupCall('deleteCollection', collectionID), function(response){
-		console.log('collection deleted');
-		callback();
+		create(callback);
 	});
 }
 
@@ -116,7 +120,7 @@ function getCollectionToken(){
 	});
 };
 
-function extractItems(file) {
+function extractItems(file, callback) {
 	fs.createReadStream(path.join(__dirname + '/../public/uploads/' + file))
 		.pipe(unzip.Extract({ path: path.join(__dirname + '/../public/uploads/extract')}))
 		.on('close', function(){
@@ -131,46 +135,64 @@ function extractItems(file) {
 						item_data.name = i.split('*')[0];
 						item_data.url = 'http://' + i.split('*')[1].split(':').join('/');
 
-						createNewItem(item_data);
+						createNewItem(item_data, callback);
 					}
 				});
 			});
 		});
 }
 
-function createNewItem(data){
+function createNewItem(data, callback){
 	console.log('createNewItem');
 
 	apiCall(setupCall('setItem', collectionUUID, data), function(response){
-		var item_uuid = JSON.parse(response).uuid;
-		var item_name = JSON.parse(response).name;
+		var item = {
+			'name': JSON.parse(response).name,
+			'uuid': JSON.parse(response).uuid
+		};
+		// var item_uuid = JSON.parse(response).uuid;
+		// var item_name = JSON.parse(response).name;
+
+		callback("Created new item with name " + item.name);
 
 		fs.readdir(extractPath, function(err, dir){
 			dir.forEach(function(i){
 				var dirPath = extractPath + '/' + i;
 				var stats = fs.statSync(dirPath);
-				if(stats.isDirectory() && i.split('*')[0] === item_name) {
-					extractImages(dirPath, item_uuid);
+				if(stats.isDirectory() && i.split('*')[0] === item.name) {
+					extractImages(dirPath, item, callback);
 				}
 			});
 		});
 	});
 }
 
-function extractImages(dirPath, item_uuid) {
+function extractImages(dirPath, item, callback) {
 	fs.readdir(dirPath, function(err, file){
 		file.forEach(function(i){
 			if(path.extname(i) === '.png') {
 				var imgPath = dirPath + '/' + i;
-				addItemImage(item_uuid, imgPath);
+				var image = {
+					'path': imgPath,
+					'item': item.name,
+					'name': i
+				};
+
+				addItemImage(item, image, callback);
 			}
 		});
 	});
 }
 
-function addItemImage(item_uuid, imgPath) {
-	apiCall(setupCall('setImage', item_uuid, imgPath), function(response) {
-		console.log('created Image');
+function addItemImage(item, img, callback) {
+	apiCall(setupCall('setImage', item.uuid, img.path), function(response) {
+		var res = JSON.parse(response);
+
+		if(res.error) {
+			callback('ERROR for image ' + img.name + ' in item '+ item.name +' :: ' + res.error.message);
+		} else {
+			callback('Created image ' + res.name + ' for item ' + item.name);
+		}
 	});
 }
 

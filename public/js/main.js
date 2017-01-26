@@ -9,7 +9,6 @@ function init() {
 	var uploader = new SocketIOFileUpload(socket);
 	uploader.listenOnInput(document.getElementById("CollectionItems"));	
 
-
 	socket.on('prompt', function(data){
 		var prompt = confirm(data.text);
 
@@ -18,5 +17,11 @@ function init() {
 		} else {
 		   console.log('Wise decision. Bye!');
 		}
+	});
+
+	socket.on('notice', function(data){
+		var notice = document.createElement('p');
+		notice.textContent = data.text;
+		document.body.appendChild(notice);
 	});
 }
