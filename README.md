@@ -9,10 +9,16 @@ You might also want to add collection or item uuids manually, for testing purpos
 Run `npm install` to install dependencies
 
 ##Run
-To create a collection, run `node server/server.js new` (Notice the `new` flag)
-*Note: this is a command line process only at the moment but will evolve*
+Run the node server `node server/server.js`
 
-To run the server normally, remove the `new` flag.
+##Admin
+Go to `http://localhost:2017/admin`.
+You can then create a new collection (WARNING: this will delete any existing collection)
+and/or add items to a collection.
+
+To add items you must upload a ZIP file containing images in folders representing the items.
+The folders should be names in the format `itemName*itemUrl`. The `*` is a mandatory separator between the 2, and the itemUrl should exclude `http://`.
+Please note the only accepted image format for now is `.png`.
 
 ##Scan
 To scan your images, go to `http://localhost:2017/` while your node server is running.

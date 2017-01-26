@@ -5,8 +5,10 @@ var formData = require('form-data');
 var fs = require('fs');
 var path = require('path');
 var unzip = require('unzip2');
+var del = require('del');
 
 var collectionUUID, collectionToken, extractPath;
+var uploadCounter = 0;
 var keys = require('./keys');
 
 
@@ -16,14 +18,18 @@ var server = app.use(siofu.router).listen(2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
 
-checkExistingCollection(false);
-
 app.get('/', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../scan.html'));
 });
 
 app.get('/admin', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../admin.html'));
+
+	fs.readdir(path.resolve(__dirname +'/../public/uploads'), function(err, data){
+		if(err) {
+			fs.mkdir(path.join(__dirname + '/../public/uploads'), function(){});
+		}
+	});
 });
 
 io.on('connection', function(socket){
@@ -36,8 +42,17 @@ io.on('connection', function(socket){
 	    uploader.dir = path.resolve(__dirname + "/../public/uploads");
 	    uploader.listen(socket);
 
-	    uploader.on("saved", function(data){
-	    	extractItems(data.file.name);
+
+	    //TODO on start, delete contents of uploads folder
+	    uploader.on("saved", function(data, callback){
+	    	extractItems(data.file.name, function(data){
+	    		--uploadCounter;
+	    		socket.emit('notice', {text: data, done: (uploadCounter === 0)});
+
+	    		if(uploadCounter === 0) {
+	    			clearUploads();
+	    		}
+	    	});
 	    });
 
 		socket.emit('ready');
@@ -50,10 +65,18 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('deleteCollection', function(data){
-		deleteCollection(collectionUUID, createCollection);
+		deleteCollection(collectionUUID, createCollection, function(data){
+			socket.emit('notice', {text: data, done: true});
+		});	
 	});
 });
 
+
+function clearUploads() {
+	del([path.join(__dirname + '/../public/uploads/')]).then(function(){
+		fs.mkdir(path.join(__dirname + '/../public/uploads'), function(){});
+	});
+}
 
 function checkExistingCollection(isNew, callback) {
 	apiCall(setupCall('getCollection'), function(response) {
@@ -90,23 +113,18 @@ function checkCollectionDate(collections, callback) {
 	callback(prompt_text);
 }
 
-function createCollection() {
+function createCollection(callback) {
 	apiCall(setupCall('setCollection'), function(response){
 		var collection_uuid = JSON.parse(response).uuid;    
         collectionUUID = collection_uuid;
 
-        // createNewItem();
-        //TODO: create items if there are any queued
-        //TODO: create a queue system for items/images in the GUI
+        callback('new collection created ' + JSON.parse(response).name);
 	});
 }
 
-function deleteCollection(collectionID, callback) {
-	console.log('collection to delete:', collectionID);
-
+function deleteCollection(collectionID, create, callback) {
 	apiCall(setupCall('deleteCollection', collectionID), function(response){
-		console.log('collection deleted');
-		callback();
+		create(callback);
 	});
 }
 
@@ -116,7 +134,7 @@ function getCollectionToken(){
 	});
 };
 
-function extractItems(file) {
+function extractItems(file, callback) {
 	fs.createReadStream(path.join(__dirname + '/../public/uploads/' + file))
 		.pipe(unzip.Extract({ path: path.join(__dirname + '/../public/uploads/extract')}))
 		.on('close', function(){
@@ -127,50 +145,68 @@ function extractItems(file) {
 				dir.forEach(function(i){
 					var stats = fs.statSync(extractPath + '/' + i);
 					if(stats.isDirectory()) {
+						++uploadCounter;
+						
 						var item_data = {};
 						item_data.name = i.split('*')[0];
 						item_data.url = 'http://' + i.split('*')[1].split(':').join('/');
 
-						createNewItem(item_data);
+						createNewItem(item_data, callback);
 					}
 				});
 			});
 		});
 }
 
-function createNewItem(data){
-	console.log('createNewItem');
-
+function createNewItem(data, callback){
 	apiCall(setupCall('setItem', collectionUUID, data), function(response){
-		var item_uuid = JSON.parse(response).uuid;
-		var item_name = JSON.parse(response).name;
+		var item = {
+			'name': JSON.parse(response).name,
+			'uuid': JSON.parse(response).uuid
+		};
 
 		fs.readdir(extractPath, function(err, dir){
 			dir.forEach(function(i){
-				var dirPath = extractPath + '/' + i;
+				var dirPath = extractPath + i;
 				var stats = fs.statSync(dirPath);
-				if(stats.isDirectory() && i.split('*')[0] === item_name) {
-					extractImages(dirPath, item_uuid);
+				if(stats.isDirectory() && i.split('*')[0] === item.name) {
+					extractImages(dirPath, item, callback);
 				}
 			});
 		});
+
+		callback("Created new item with name " + item.name);
 	});
 }
 
-function extractImages(dirPath, item_uuid) {
+function extractImages(dirPath, item, callback) {
 	fs.readdir(dirPath, function(err, file){
 		file.forEach(function(i){
 			if(path.extname(i) === '.png') {
 				var imgPath = dirPath + '/' + i;
-				addItemImage(item_uuid, imgPath);
+				var image = {
+					'path': imgPath,
+					'item': item.name,
+					'name': i
+				};
+
+				++uploadCounter;
+
+				addItemImage(item, image, callback);
 			}
 		});
 	});
 }
 
-function addItemImage(item_uuid, imgPath) {
-	apiCall(setupCall('setImage', item_uuid, imgPath), function(response) {
-		console.log('created Image');
+function addItemImage(item, img, callback) {
+	apiCall(setupCall('setImage', item.uuid, img.path), function(response) {
+		var res = JSON.parse(response);
+
+		if(res.error) {
+			callback('ERROR for image ' + img.name + ' in item '+ item.name +' :: ' + res.error.message);
+		} else {
+			callback('Created image ' + res.name + ' for item ' + item.name);
+		}
 	});
 }
 
@@ -260,7 +296,7 @@ function apiCall(setup, callback){
 	if(setup.form)	setup.form.pipe(hreq);
 
 	hreq.on('response', function (hres) {  
-	    console.log('STATUS CODE: ' + hres.statusCode);
+	    // console.log('STATUS CODE: ' + hres.statusCode);
 	    hres.setEncoding('utf8');
 
 	    var response = '';
@@ -282,3 +318,6 @@ function apiCall(setup, callback){
 
 	if(!setup.form) hreq.end();
 }
+
+
+checkExistingCollection(false);
