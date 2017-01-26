@@ -18,7 +18,7 @@
 		});
 	</script>
 
-	<link rel="stylesheet" href="https://build.origami.ft.com/v2/bundles/css?modules=o-fonts@^2.2.0,o-typography@^4.3.2,o-buttons@^4.4.4" />
+	<link rel="stylesheet" href="https://build.origami.ft.com/v2/bundles/css?modules=o-fonts@^2.2.0,o-typography@^4.3.2,o-buttons@^4.4.4,o-loading@^1.0.0" />
 	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
@@ -36,6 +36,8 @@
 	<div class="centre-content o-typography-body admin-cta">
 		I want to create a <button id="NewCol" class="o-buttons o-buttons--standout o-buttons--big">New Collection</button> or <button id="AddItem" class="o-buttons o-buttons--standout o-buttons--big">Add Items</button>
 	</div>
+
+	<div class="centre-content hidden loader o-loading o-loading--dark o-loading--large"></div>
 
 	<form action="#" method="post" accept-charset="utf-8">
 		<input id="CollectionItems" class="hidden" type="file" accept=".zip">
