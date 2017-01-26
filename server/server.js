@@ -14,7 +14,7 @@ var keys = require('./keys');
 
 var app = express();
 
-var server = app.use(siofu.router).listen(2017);
+var server = app.use(siofu.router).listen(process.env.PORT || 2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
 
