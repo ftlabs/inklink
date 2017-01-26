@@ -3,10 +3,12 @@ function init() {
 	var itemCta = document.getElementById('AddItem');
 	var ctaContainer = document.querySelector('.admin-cta');
 	var itemUpload = document.getElementById("CollectionItems");
+	var loader = document.querySelector('.loader');
 
 	newCol.addEventListener('click', function(){
 		socket.emit('newCollection');
 		ctaContainer.classList.add('hidden');
+		loader.classList.remove('hidden');
 	});
 
 	itemCta.addEventListener('click', function(){
@@ -17,6 +19,7 @@ function init() {
 	uploader.listenOnInput(itemUpload);
 	uploader.addEventListener("complete", function(event){
 		ctaContainer.classList.add('hidden');
+		loader.classList.remove('hidden');
 	});
 
 	socket.on('prompt', function(data){
@@ -26,6 +29,7 @@ function init() {
 		   socket.emit('deleteCollection');
 		} else {
 		   ctaContainer.classList.remove('hidden');
+		   loader.classList.add('hidden');
 		}
 	});
 
@@ -37,6 +41,11 @@ function init() {
 
 		if(!!data.done) {
 			ctaContainer.classList.remove('hidden');
+			loader.classList.add('hidden');
+			
+			var done = document.createElement('p');
+			done.textContent = '===DONE===';
+			output.insertBefore(done, output.firstChild);
 		}
 	});
 }
