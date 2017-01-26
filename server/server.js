@@ -5,8 +5,10 @@ var formData = require('form-data');
 var fs = require('fs');
 var path = require('path');
 var unzip = require('unzip2');
+var del = require('del');
 
 var collectionUUID, collectionToken, extractPath;
+var uploadCounter = 0;
 var keys = require('./keys');
 
 
@@ -40,7 +42,12 @@ io.on('connection', function(socket){
 	    //TODO on start, delete contents of uploads folder
 	    uploader.on("saved", function(data, callback){
 	    	extractItems(data.file.name, function(data){
-	    		socket.emit('notice', {text: data});
+	    		--uploadCounter;
+	    		socket.emit('notice', {text: data, done: (uploadCounter === 0)});
+
+	    		if(uploadCounter === 0) {
+	    			clearUploads();
+	    		}
 	    	});
 	    });
 
@@ -55,12 +62,19 @@ io.on('connection', function(socket){
 
 	socket.on('deleteCollection', function(data){
 		deleteCollection(collectionUUID, createCollection, function(data){
-			console.log(data);
-			socket.emit('notice', {text: data});
+			socket.emit('notice', {text: data, done: true});
 		});	
 	});
 });
 
+
+function clearUploads() {
+	del([path.join(__dirname + '/../public/uploads/')]).then(function(){
+		fs.mkdir(path.join(__dirname + '/../public/uploads'), function(){
+			console.log('DONE');
+		});
+	});
+}
 
 function checkExistingCollection(isNew, callback) {
 	apiCall(setupCall('getCollection'), function(response) {
@@ -107,8 +121,6 @@ function createCollection(callback) {
 }
 
 function deleteCollection(collectionID, create, callback) {
-	console.log('collection to delete:', collectionID);
-
 	apiCall(setupCall('deleteCollection', collectionID), function(response){
 		create(callback);
 	});
@@ -131,6 +143,8 @@ function extractItems(file, callback) {
 				dir.forEach(function(i){
 					var stats = fs.statSync(extractPath + '/' + i);
 					if(stats.isDirectory()) {
+						++uploadCounter;
+						
 						var item_data = {};
 						item_data.name = i.split('*')[0];
 						item_data.url = 'http://' + i.split('*')[1].split(':').join('/');
@@ -143,27 +157,23 @@ function extractItems(file, callback) {
 }
 
 function createNewItem(data, callback){
-	console.log('createNewItem');
-
 	apiCall(setupCall('setItem', collectionUUID, data), function(response){
 		var item = {
 			'name': JSON.parse(response).name,
 			'uuid': JSON.parse(response).uuid
 		};
-		// var item_uuid = JSON.parse(response).uuid;
-		// var item_name = JSON.parse(response).name;
-
-		callback("Created new item with name " + item.name);
 
 		fs.readdir(extractPath, function(err, dir){
 			dir.forEach(function(i){
-				var dirPath = extractPath + '/' + i;
+				var dirPath = extractPath + i;
 				var stats = fs.statSync(dirPath);
 				if(stats.isDirectory() && i.split('*')[0] === item.name) {
 					extractImages(dirPath, item, callback);
 				}
 			});
 		});
+
+		callback("Created new item with name " + item.name);
 	});
 }
 
@@ -177,6 +187,8 @@ function extractImages(dirPath, item, callback) {
 					'item': item.name,
 					'name': i
 				};
+
+				++uploadCounter;
 
 				addItemImage(item, image, callback);
 			}
@@ -282,7 +294,7 @@ function apiCall(setup, callback){
 	if(setup.form)	setup.form.pipe(hreq);
 
 	hreq.on('response', function (hres) {  
-	    console.log('STATUS CODE: ' + hres.statusCode);
+	    // console.log('STATUS CODE: ' + hres.statusCode);
 	    hres.setEncoding('utf8');
 
 	    var response = '';

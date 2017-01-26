@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "del": "^2.2.2",
     "express": "^4.14.0",
     "form-data": "^2.1.2",
     "https": "^1.0.0",

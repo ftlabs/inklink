@@ -29,15 +29,20 @@
 	<hr />
 	<div class="o-typography-body intro">
 		<p>Hello InkLink admin!</p>
+		<p>Please note creating a new collection will delete the existing one.</p>
+		<p>To create items, create a zip file of folders formatted thus: itemName*itemUrl<br>and containing all the images for that item in png form. (please remove the 'http://' from itemUrl)</p>
 	</div>
 
-	<div class="centre-button">
-		<button id="NewCol" class="o-buttons o-buttons--standout o-buttons--big">New Collection</button>
+	<div class="centre-content o-typography-body admin-cta">
+		I want to create a <button id="NewCol" class="o-buttons o-buttons--standout o-buttons--big">New Collection</button> or <button id="AddItem" class="o-buttons o-buttons--standout o-buttons--big">Add Items</button>
 	</div>
 
 	<form action="#" method="post" accept-charset="utf-8">
-		<input id="CollectionItems" type="file" accept=".zip">
+		<input id="CollectionItems" class="hidden" type="file" accept=".zip">
 	</form>
+
+	<div class="output o-typography-body">
+	</div>
 
 	<script src="//origami-build.ft.com/v2/bundles/js?modules=o-buttons"></script>
 </body>
