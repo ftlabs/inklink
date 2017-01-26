@@ -1,5 +1,5 @@
 .DS_Store
-server/keys.js
+.env
 node_modules/*
 assets/*
 public/uploads/*
