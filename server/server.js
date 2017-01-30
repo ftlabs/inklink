@@ -53,8 +53,6 @@ io.on('connection', function(socket){
 	    uploader.dir = path.resolve(__dirname + "/../public/uploads");
 	    uploader.listen(socket);
 
-
-	    //TODO on start, delete contents of uploads folder
 	    uploader.on("saved", function(data, callback){
 	    	extractItems(data.file.name, function(data){
 	    		--uploadCounter;
@@ -77,6 +75,7 @@ io.on('connection', function(socket){
 
 	socket.on('deleteCollection', function(data){
 		deleteCollection(collectionUUID, createCollection, function(data){
+			getCollectionToken();
 			socket.emit('notice', {text: data, done: true});
 		});	
 	});
