@@ -21,7 +21,7 @@ var app = express();
 var server = app.use(siofu.router).listen(process.env.PORT || 2017);
 var io = require('socket.io').listen(server, { log : false });
 app.use(express.static(path.resolve(__dirname + "/../public")));
-app.use(auth);
+
 
 if(process.env.NODE_ENV !== 'local') {
 	app.use(helmet());
@@ -32,6 +32,8 @@ if(process.env.NODE_ENV !== 'local') {
 app.get('/', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../scan.html'));
 });
+
+app.use(auth); // allow access to /, but require s30 for /admin
 
 app.get('/admin', function(req, res){
 	res.sendFile(path.resolve(__dirname +'/../admin.html'));
@@ -77,7 +79,7 @@ io.on('connection', function(socket){
 		deleteCollection(collectionUUID, createCollection, function(data){
 			getCollectionToken();
 			socket.emit('notice', {text: data, done: true});
-		});	
+		});
 	});
 });
 
@@ -108,12 +110,12 @@ function checkExistingCollection(isNew, callback) {
 
 function checkCollectionDate(collections, callback) {
 	var collection_date = collections[0].name.split('-')[2];
-	
+
 	var today = new Date();
 	var stamp = today.getFullYear().toString() + (today.getMonth() + 1).toString() + today.getDate().toString();
 
 	var prompt_text = '';
-	
+
 	if(collection_date === stamp) {
 		prompt_text = 'There already is a collection for today, do you want to start over?';
 	} else {
@@ -125,7 +127,7 @@ function checkCollectionDate(collections, callback) {
 
 function createCollection(callback) {
 	apiCall(setupCall('setCollection'), function(response){
-		var collection_uuid = JSON.parse(response).uuid;    
+		var collection_uuid = JSON.parse(response).uuid;
         collectionUUID = collection_uuid;
 
         callback('new collection created ' + JSON.parse(response).name);
@@ -156,7 +158,7 @@ function extractItems(file, callback) {
 					var stats = fs.statSync(extractPath + '/' + i);
 					if(stats.isDirectory()) {
 						++uploadCounter;
-						
+
 						var item_data = {};
 						item_data.name = i.split('*')[0];
 						item_data.url = 'http://' + i.split('*')[1].split(':').join('/');
@@ -305,7 +307,7 @@ function apiCall(setup, callback){
 
 	if(setup.form)	setup.form.pipe(hreq);
 
-	hreq.on('response', function (hres) {  
+	hreq.on('response', function (hres) {
 	    // console.log('STATUS CODE: ' + hres.statusCode);
 	    hres.setEncoding('utf8');
 
@@ -321,7 +323,7 @@ function apiCall(setup, callback){
 
 	    hres.on('error', function (e) {
 	        console.log('ERROR: ' + e.message);
-	    }); 
+	    });
 	});
 
 	if(setup.options.method === 'POST' && !setup.form)	hreq.write(setup.post_data);
