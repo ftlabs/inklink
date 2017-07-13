@@ -31,5 +31,8 @@
   "bugs": {
     "url": "https://github.com/ftlabs/inklink/issues"
   },
-  "homepage": "https://github.com/ftlabs/inklink#readme"
+  "homepage": "https://github.com/ftlabs/inklink#readme",
+  "engines" : {
+    "node" : "> 6.11.0 < 7.0.0"
+  }
 }
