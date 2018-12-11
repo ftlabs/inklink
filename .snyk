@@ -1,0 +1,13 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.13.1
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
+ignore:
+  'npm:lodash:20180130':
+    - s3o-middleware > node-rsa > lodash:
+        reason: no patch
+        expires: '2019-01-09T11:59:21.270Z'
+  'npm:utile:20180614':
+    - prompt > utile:
+        reason: no patch
+        expires: '2019-01-09T11:59:21.270Z'
+patch: {}
